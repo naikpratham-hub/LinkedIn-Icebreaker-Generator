@@ -20,4 +20,8 @@ export interface IcebreakerResponse {
     variationC: string;
   };
   personalizationInsights: string;
+  followUpQuestions: {
+    question1: string;
+    question2: string;
+  };
 }

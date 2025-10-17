@@ -26,9 +26,24 @@ const responseSchema = {
     personalizationInsights: {
       type: Type.STRING,
       description: "A brief explanation (2-3 sentences) of why this icebreaker approach works for this specific prospect."
+    },
+    followUpQuestions: {
+      type: Type.OBJECT,
+      description: "Two strategic, open-ended follow-up questions to ask after the prospect responds to the initial icebreaker.",
+      properties: {
+        question1: {
+          type: Type.STRING,
+          description: "A question related to a potential industry trend or challenge."
+        },
+        question2: {
+          type: Type.STRING,
+          description: "A question that dives deeper into a topic from their recent activity or profile."
+        }
+      },
+      required: ['question1', 'question2']
     }
   },
-  required: ['primaryIcebreaker', 'variations', 'personalizationInsights']
+  required: ['primaryIcebreaker', 'variations', 'personalizationInsights', 'followUpQuestions']
 };
 
 function buildPrompt(data: FormData): string {
@@ -39,7 +54,7 @@ function buildPrompt(data: FormData): string {
     </ROLE>
 
     <MISSION>
-    Your SOLE mission is to generate a set of personalized LinkedIn icebreakers based on the provided prospect and user data. Your entire response must be a single, valid JSON object that strictly adheres to the provided schema, with no extra text or formatting.
+    Your SOLE mission is to generate a set of personalized LinkedIn icebreakers and follow-up questions based on the provided prospect and user data. Your entire response must be a single, valid JSON object that strictly adheres to the provided schema, with no extra text or formatting.
     </MISSION>
 
     <INPUT_DATA>
@@ -82,6 +97,12 @@ function buildPrompt(data: FormData): string {
     3.  **personalizationInsights (string):**
         - A concise, 2-3 sentence strategic analysis of the primary icebreaker.
         - Explain the specific psychological hook used (e.g., 'empathizing with a role-specific pain point,' 'leveraging familiarity via shared connections,' 'invoking curiosity through industry observation'). Do not just repeat the icebreaker text.
+
+    4.  **followUpQuestions (object):**
+        - Generate two distinct, open-ended follow-up questions to be used *after* the prospect replies to the initial icebreaker. These should not be part of the first message.
+        - **question1 (string):** Focus on a high-level industry trend or a common pain point relevant to their role and company. Show you understand their world. Example: "Given [Industry Trend], how is ${data.prospectCompany} thinking about navigating [challenge] this year?"
+        - **question2 (string):** Be more specific. If they have 'Recent Activity', craft a question that digs deeper into that topic. If not, ask an insightful question about a 'Skill' they've listed. Example: "You mentioned [Topic from post] in your recent article - I was curious how you see that evolving with the rise of AI?"
+        - These questions MUST be designed to continue the conversation, not to pitch.
     </OUTPUT_INSTRUCTIONS>
 
     <NON-NEGOTIABLE_RULES>
@@ -96,6 +117,7 @@ function buildPrompt(data: FormData): string {
 }
 
 export const generateIcebreaker = async (data: FormData): Promise<IcebreakerResponse | null> => {
+  let rawResponseText: string | null = null;
   try {
     const prompt = buildPrompt(data);
     const response = await ai.models.generateContent({
@@ -110,11 +132,21 @@ export const generateIcebreaker = async (data: FormData): Promise<IcebreakerResp
       },
     });
 
-    const jsonText = response.text.trim();
-    const parsedResponse: IcebreakerResponse = JSON.parse(jsonText);
+    rawResponseText = response.text.trim();
+    const parsedResponse: IcebreakerResponse = JSON.parse(rawResponseText);
     return parsedResponse;
   } catch (error) {
-    console.error("Error generating icebreakers:", error);
+    // Check if the error is a SyntaxError, which indicates a JSON parsing issue.
+    if (error instanceof SyntaxError) {
+      console.error("Error parsing JSON response from Gemini API:", error);
+      if (rawResponseText) {
+        console.error("Raw response text that failed to parse:", rawResponseText);
+      }
+      throw new Error("The AI returned a response in an unexpected format. Please try again.");
+    }
+    
+    // For all other errors, assume it's an API communication issue.
+    console.error("Error communicating with Gemini API:", error);
     throw new Error("Failed to communicate with the Gemini API. Please check your API key and network connection.");
   }
 };

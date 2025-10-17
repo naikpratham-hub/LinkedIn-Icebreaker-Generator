@@ -28,6 +28,19 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ data }) => {
         </div>
       </div>
       
+      {data.followUpQuestions && (
+        <div className="mt-8">
+          <h3 className="text-xl font-semibold mb-2 text-center md:text-left">Strategic Follow-Up Questions</h3>
+          <p className="text-sm text-center md:text-left text-gray-500 dark:text-gray-400 mb-4">
+              Use one of these after they respond to your initial message to continue the conversation.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <IcebreakerCard title="Follow-Up: Industry/Pain Point" text={data.followUpQuestions.question1} />
+              <IcebreakerCard title="Follow-Up: Profile-Specific" text={data.followUpQuestions.question2} />
+          </div>
+        </div>
+      )}
+
       <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 p-6 rounded-lg">
         <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300 flex items-center mb-2">
           <InsightsIcon className="h-5 w-5 mr-2" />
